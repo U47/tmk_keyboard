@@ -29,7 +29,6 @@ INCLUDE_PATHS = -I.
 #BOOTMAGIC_ENABLE = yes
 #MOUSEKEY_ENABLE = yes
 
-
 include $(TMK_DIR)/tool/mbed/common.mk
 include mbed-infinity.mk
 include $(TMK_DIR)/tool/mbed/mbed.mk
