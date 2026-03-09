@@ -22,8 +22,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "util.h"
 #include "debug.h"
 
+#include "mouse.h"
+#ifdef MOUSEKEY_ENABLE
+#   include "mousekey.h"
+#endif
 
-#ifdef NKRO_ENABLE
+
+#if defined(NKRO_ENABLE) || defined(NKRO_6KRO_ENABLE)
 bool keyboard_nkro = true;
 #endif
 
@@ -54,7 +59,7 @@ void host_keyboard_send(report_keyboard_t *report)
     (*driver->send_keyboard)(report);
 
     if (debug_keyboard) {
-        dprint("keyboard_report: ");
+        dprint("keyboard: ");
         for (uint8_t i = 0; i < KEYBOARD_REPORT_SIZE; i++) {
             dprintf("%02X ", report->raw[i]);
         }
@@ -65,7 +70,17 @@ void host_keyboard_send(report_keyboard_t *report)
 void host_mouse_send(report_mouse_t *report)
 {
     if (!driver) return;
+#ifdef MOUSE_EXT_REPORT
+    // clip and copy to Boot protocol XY
+    report->boot_x = (report->x > 127) ? 127 : ((report->x < -127) ? -127 : report->x);
+    report->boot_y = (report->y > 127) ? 127 : ((report->y < -127) ? -127 : report->y);
+#endif
+
     (*driver->send_mouse)(report);
+
+    if (debug_mouse) {
+        xprintf("\nmouse: [%02X|%d %d %d %d] ", report->buttons, report->x, report->y, report->v, report->h);
+    }
 }
 
 void host_system_send(uint16_t report)
@@ -75,6 +90,10 @@ void host_system_send(uint16_t report)
 
     if (!driver) return;
     (*driver->send_system)(report);
+
+    if (debug_keyboard) {
+        dprintf("system: %04X\n", report);
+    }
 }
 
 void host_consumer_send(uint16_t report)
@@ -84,9 +103,13 @@ void host_consumer_send(uint16_t report)
 
     if (!driver) return;
     (*driver->send_consumer)(report);
+
+    if (debug_keyboard) {
+        dprintf("consumer: %04X\n", report);
+    }
 }
 
-uint16_t host_last_sysytem_report(void)
+uint16_t host_last_system_report(void)
 {
     return last_system_report;
 }

@@ -1,33 +1,36 @@
 #include "parser.h"
 #include "usb_hid.h"
 
-#include "debug.h"
+#include "print.h"
 
 
-report_keyboard_t usb_hid_keyboard_report;
-uint16_t usb_hid_time_stamp;
-
-
-void KBDReportParser::Parse(HID *hid, bool is_rpt_id, uint8_t len, uint8_t *buf)
+void KBDReportParser::Parse(USBHID *hid, bool is_rpt_id, uint8_t len, uint8_t *buf)
 {
-    bool is_error = false;
-    report_keyboard_t *report = (report_keyboard_t *)buf;
-
-    dprintf("keyboard input:  %02X %02X", report->mods, report->reserved);
-    for (uint8_t i = 0; i < KEYBOARD_REPORT_KEYS; i++) {
-        if (IS_ERROR(report->keys[i])) {
-            is_error = true;
-        }
-        dprintf(" %02X", report->keys[i]);
+    xprintf("input %d:", hid->GetAddress());
+    for (uint8_t i = 0; i < len; i++) {
+        xprintf(" %02X", buf[i]);
     }
-    dprint("\r\n");
+    xprintf("\r\n");
 
-    // ignore error and not send report to computer
-    if (is_error) {
-        dprint("Error usage! \r\n");
+    /* Keyboard can send report in size other than 8 bytes
+     * https://github.com/tmk/tmk_keyboard/issues/773
+    // boot keyboard report length should be 8
+    if (len != 8) {
+        xprintf(" ignored\r\n");
         return;
     }
+    */
 
-    ::memcpy(&usb_hid_keyboard_report, buf, sizeof(report_keyboard_t));
-    usb_hid_time_stamp = millis();
+    // Rollover error
+    // Cherry: 0101010101010101
+    // https://geekhack.org/index.php?topic=69169.msg2638223#msg2638223
+    // Apple:  0000010101010101
+    // https://geekhack.org/index.php?topic=69169.msg2760969#msg2760969
+    if (buf[2] == 0x01) {
+       xprintf("Rollover error: ignored\r\n");
+       return;
+    }
+
+    ::memcpy(&report, buf, sizeof(report_keyboard_t));
+    time_stamp = millis();
 }

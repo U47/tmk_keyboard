@@ -46,20 +46,9 @@ static uint8_t _matrix0[MATRIX_ROWS];
 static void register_key(uint8_t key);
 
 
-inline
-uint8_t matrix_rows(void)
-{
-    return MATRIX_ROWS;
-}
-
-inline
-uint8_t matrix_cols(void)
-{
-    return MATRIX_COLS;
-}
-
 void matrix_init(void)
 {
+    debug_enable = true;
     m0110_init();
     // initialize matrix state: all keys off
     for (uint8_t i=0; i < MATRIX_ROWS; i++) _matrix0[i] = 0x00;
@@ -73,9 +62,26 @@ void matrix_init(void)
     return;
 }
 
+static bool m0110_intl = false;
+static uint8_t m0110_model = 0xFF;
+static uint8_t get_m0110_model(void)
+{
+    m0110_send(M0110_MODEL);
+    return m0110_recv();
+}
+
 uint8_t matrix_scan(void)
 {
     uint8_t key;
+
+    if (m0110_model == 0xFF) {
+        m0110_model = get_m0110_model();
+        if (m0110_model == 0xFF) {
+            return 0;
+        }
+        xprintf("model: %02X\n", m0110_model);
+        // TODO: detect international M0110 and config m0110_intl
+    }
 
     is_modified = false;
     key = m0110_recv_key();
@@ -83,6 +89,7 @@ uint8_t matrix_scan(void)
     if (key == M0110_NULL) {
         return 0;
     } else if (key == M0110_ERROR) {
+        m0110_model = 0xFF;
         return 0;
     } else {
         is_modified = true;
@@ -95,51 +102,43 @@ uint8_t matrix_scan(void)
     return 1;
 }
 
-bool matrix_is_modified(void)
-{
-    return is_modified;
-}
-
-inline
-bool matrix_has_ghost(void)
-{
-    return false;
-}
-
-inline
-bool matrix_is_on(uint8_t row, uint8_t col)
-{
-    return (matrix[row] & (1<<col));
-}
-
 inline
 uint8_t matrix_get_row(uint8_t row)
 {
     return matrix[row];
 }
 
-void matrix_print(void)
+static uint8_t intl_key(uint8_t key)
 {
-    print("\nr/c 01234567\n");
-    for (uint8_t row = 0; row < matrix_rows(); row++) {
-        phex(row); print(": ");
-        pbin_reverse(matrix_get_row(row));
-        print("\n");
+    switch (key) {
+        // Intl code -> TMK matrix
+        case 0x06: return 0x0A; // Non-US bslash
+        case 0x07: return 0x06; // Z
+        case 0x08: return 0x07; // X
+        case 0x09: return 0x08; // C
+        case 0x0B: return 0x09; // V
+        case 0x2D: return 0x0B; // B
+        case 0x2E: return 0x2D; // N
+        case 0x2B: return 0x2E; // M
+        case 0x2F: return 0x2B; // ,
+        case 0x2C: return 0x2F; // .
+        case 0x0A: return 0x2C; // /
+        case 0x34: return 0x31; // Space
+        case 0x31: return 0x34; // RGUI
+        case 0x24: return 0x2A; // bslash
+        case 0x2A: return 0x24; // Enter
     }
-}
-
-uint8_t matrix_key_count(void)
-{
-    uint8_t count = 0;
-    for (uint8_t i = 0; i < MATRIX_ROWS; i++) {
-        count += bitpop(matrix[i]);
-    }
-    return count;
+    return key;
 }
 
 inline
 static void register_key(uint8_t key)
 {
+    if (m0110_intl) {
+        key = (key & 0x80) | intl_key(key & 0x7F);
+        dprintf("<%02X> ", key);
+    }
+
     if (key&0x80) {
         matrix[ROW(key)] &= ~(1<<COL(key));
     } else {

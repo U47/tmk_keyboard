@@ -28,10 +28,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 extern "C" {
 #endif
 
-#ifdef NKRO_ENABLE
+#if defined(NKRO_ENABLE) || defined(NKRO_6KRO_ENABLE)
 extern bool keyboard_nkro;
 #endif
 
+/* These parameters should be included into host driver also?
+ * keyboard_protocol: 0:Boot, 1:Report(default)
+ * keyboard_idle: idle rate in unit of 4ms */
 extern uint8_t keyboard_idle;
 extern uint8_t keyboard_protocol;
 
@@ -47,7 +50,7 @@ void host_mouse_send(report_mouse_t *report);
 void host_system_send(uint16_t data);
 void host_consumer_send(uint16_t data);
 
-uint16_t host_last_sysytem_report(void);
+uint16_t host_last_system_report(void);
 uint16_t host_last_consumer_report(void);
 
 #ifdef __cplusplus

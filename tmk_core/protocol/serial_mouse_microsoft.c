@@ -26,6 +26,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "timer.h"
 #include "print.h"
 #include "debug.h"
+#include "mouse.h"
 
 #ifdef MAX
 #undef MAX
@@ -70,7 +71,7 @@ void serial_mouse_task(void)
         report.x = report.y = 0;
 
         print_usb_data(&report);
-        host_mouse_send(&report);
+        mouse_send(&report);
         return;
     }
 
@@ -110,7 +111,7 @@ void serial_mouse_task(void)
 #endif
 
     print_usb_data(&report);
-    host_mouse_send(&report);
+    mouse_send(&report);
 }
 
 static void print_usb_data(const report_mouse_t *report)

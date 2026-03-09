@@ -39,9 +39,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 /* Locking resynchronize hack */
 #define LOCKING_RESYNC_ENABLE
 
+// Mouse Extended Report
+//#define MOUSE_EXT_REPORT
 
-/* legacy keymap support */
-#define USE_LEGACY_KEYMAP
+// Second button in Apple Classic Mouse protocol is ignored as Mac OS9 and OSX does.
+// Without this some of 2-button mouses are unusable.
+// https://github.com/tmk/tmk_keyboard/issues/724
+#define ADB_MOUSE_2ND_BUTTON_QUIRK
 
 
 /* ADB port setting */
@@ -49,7 +53,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define ADB_PIN         PIND
 #define ADB_DDR         DDRD
 #define ADB_DATA_BIT    0
-//#define ADB_PSW_BIT     1       // optional
+#define ADB_PSW_BIT     1
 
 /* key combination for command */
 #ifndef __ASSEMBLER__
@@ -59,5 +63,19 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     matrix_is_on(MATRIX_ROW(ADB_POWER), MATRIX_COL(ADB_POWER)) \
 )
 #endif
+
+
+/* Mouse scroll by button
+ *
+ * Kensington Turbo Mouse 5
+ *                    .--------,
+ *    middle click -> |3  __  4|
+ *                    |  /  \  |
+ *                    |  \__/  |
+ *      left click -> |1      2| <- right click
+ *                    `--------'
+ */
+#define MOUSE_SCROLL_BUTTON     MOUSE_BTN2
+#define MOUSE_SCROLL_DIV        10
 
 #endif

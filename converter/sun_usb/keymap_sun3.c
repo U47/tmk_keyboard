@@ -17,7 +17,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <stdint.h>
 #include <stdbool.h>
-#include <avr/pgmspace.h>
 #include "keycode.h"
 #include "util.h"
 #include "keymap.h"
@@ -67,7 +66,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 }
 
 // Assign Fn key(0-7) to a layer to which switch with the Fn key pressed.
-static const uint8_t PROGMEM fn_layer[] = {
+const uint8_t PROGMEM fn_layer[] = {
     2,              // Fn0
     3,              // Fn1
     4,              // Fn2
@@ -80,7 +79,7 @@ static const uint8_t PROGMEM fn_layer[] = {
 
 // Assign Fn key(0-7) to a keycode sent when release Fn key without use of the layer.
 // See layer.c for details.
-static const uint8_t PROGMEM fn_keycode[] = {
+const uint8_t PROGMEM fn_keycode[] = {
     KC_NO,          // Fn0
     KC_SCLN,        // Fn1
     KC_SLSH,        // Fn2
@@ -92,7 +91,7 @@ static const uint8_t PROGMEM fn_keycode[] = {
 };
 
 
-static const uint8_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
+const uint8_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 
     KEYMAP(
     F10, F11,   F1, F2,     F3,     F4,     F5,     F6,      F7,  F8, F9,  BSPC,   VOLD, MUTE,   VOLU,
@@ -155,19 +154,3 @@ static const uint8_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     ),
     */
 };
-
-
-uint8_t keymap_get_keycode(uint8_t layer, uint8_t row, uint8_t col)
-{
-    return pgm_read_byte(&keymaps[(layer)][(row)][(col)]);
-}
-
-uint8_t keymap_fn_layer(uint8_t index)
-{
-    return pgm_read_byte(&fn_layer[index]);
-}
-
-uint8_t keymap_fn_keycode(uint8_t index)
-{
-    return pgm_read_byte(&fn_keycode[index]);
-}

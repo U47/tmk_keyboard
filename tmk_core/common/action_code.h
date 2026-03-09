@@ -29,14 +29,18 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
  * 000r|0000|0000 0001    Transparent code
  * 000r|0000| keycode     Key
  * 000r|mods|0000 0000    Modifiers
- * 000r|mods| keycode     Modifiers+Key(Modified key)
+ * 000r|mods| keycode     Modifiers+key(Modified key)
  *   r: Left/Right flag(Left:0, Right:1)
  *
  * ACT_MODS_TAP(001r):
- * 001r|mods|0000 0000    Modifiers with OneShot
- * 001r|mods|0000 0001    Modifiers with tap toggle
- * 001r|mods|0000 00xx    (reserved)
- * 001r|mods| keycode     Modifiers with Tap Key(Dual role)
+ * 001r|mods|0000 0000    Modifiers with OneShot[TAP]
+ * 001r|mods|0000 0001    Modifiers with tap toggle[TAP]
+ * 001r|mods|0000 00xx    (reserved)            (0x02-03)
+ * 001r|mods| keycode     Modifiers and tap key[TAP]
+ *
+ * ACT_TAP_MODS(011r):
+ * 011r|mods|0000 00xx    (reserved)
+ * 011r|mods| keycode     Tap key and Modifiers[TAP]
  *
  *
  * Other Keys(01xx)
@@ -47,10 +51,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
  * 0100|10| usage(10)     (reserved)
  * 0100|11| usage(10)     (reserved)
  *
- * ACT_MOUSEKEY(0110): TODO: Not needed?
+ * ACT_MOUSEKEY(0101): TODO: Not needed?
  * 0101|xxxx| keycode     Mouse key
- *
- * 011x|xxxx xxxx xxxx    (reseved)
  *
  *
  * Layer Actions(10xx)
@@ -70,13 +72,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
  * 1001|oopp|BBBB BBBB   8-bit Bitwise Operation???
  *
  * ACT_LAYER_TAP(101x):
- * 101E|LLLL| keycode    On/Off with tap key    (0x00-DF)[TAP]
- * 101E|LLLL|1110 mods   On/Off with modifiers  (0xE0-EF)[NOT TAP]
+ * 101E|LLLL| keycode    On/Off with tap key    [TAP]
+ * 101E|LLLL|110r mods   On/Off with modifiers  (0xC0-DF)[NOT TAP]
+ *                       r: Left/Right flag(Left:0, Right:1)
  * 101E|LLLL|1111 0000   Invert with tap toggle (0xF0)   [TAP]
  * 101E|LLLL|1111 0001   On/Off                 (0xF1)   [NOT TAP]
  * 101E|LLLL|1111 0010   Off/On                 (0xF2)   [NOT TAP]
  * 101E|LLLL|1111 0011   Set/Clear              (0xF3)   [NOT TAP]
- * 101E|LLLL|1111 xxxx   Reserved               (0xF4-FF)
+ * 101E|LLLL|1111 xxxx   (reserved)             (0xF4-FF)
  *   ELLLL: layer 0-31(E: extra bit for layer 16-31)
  *
  *
@@ -104,6 +107,9 @@ enum action_kind_id {
     ACT_MODS_TAP        = 0b0010,
     ACT_LMODS_TAP       = 0b0010,
     ACT_RMODS_TAP       = 0b0011,
+    ACT_TAP_MODS        = 0b0110,
+    ACT_TAP_LMODS       = 0b0110,
+    ACT_TAP_RMODS       = 0b0111,
     /* Other Keys */
     ACT_USAGE           = 0b0100,
     ACT_MOUSEKEY        = 0b0101,
@@ -181,9 +187,9 @@ typedef union {
 
 
 /* action utility */
-#define ACTION_NO                       0
-#define ACTION_TRANSPARENT              1
-#define ACTION(kind, param)             ((kind)<<12 | (param))
+#define ACTION_NO                       { .code = 0 }
+#define ACTION_TRANSPARENT              { .code = 1 }
+#define ACTION(kind, param)             { .code = ((kind)<<12 | (param)) }
 
 
 /*
@@ -197,25 +203,27 @@ typedef union {
  *   bit 4      +----- LR flag(Left:0, Right:1)
  */
 enum mods_bit {
-    MOD_LCTL = 0x01,
-    MOD_LSFT = 0x02,
-    MOD_LALT = 0x04,
-    MOD_LGUI = 0x08,
-    MOD_RCTL = 0x11,
-    MOD_RSFT = 0x12,
-    MOD_RALT = 0x14,
-    MOD_RGUI = 0x18,
+    MOD_NONE = 0x0000,
+    MOD_LCTL = 0x0100,
+    MOD_LSFT = 0x0200,
+    MOD_LALT = 0x0400,
+    MOD_LGUI = 0x0800,
+    MOD_RCTL = 0x1100,
+    MOD_RSFT = 0x1200,
+    MOD_RALT = 0x1400,
+    MOD_RGUI = 0x1800,
 };
 enum mods_codes {
     MODS_ONESHOT = 0x00,
     MODS_TAP_TOGGLE = 0x01,
 };
 #define ACTION_KEY(key)                 ACTION(ACT_MODS, (key))
-#define ACTION_MODS(mods)               ACTION(ACT_MODS, ((mods)&0x1f)<<8 | 0)
-#define ACTION_MODS_KEY(mods, key)      ACTION(ACT_MODS, ((mods)&0x1f)<<8 | (key))
-#define ACTION_MODS_TAP_KEY(mods, key)  ACTION(ACT_MODS_TAP, ((mods)&0x1f)<<8 | (key))
-#define ACTION_MODS_ONESHOT(mods)       ACTION(ACT_MODS_TAP, ((mods)&0x1f)<<8 | MODS_ONESHOT)
-#define ACTION_MODS_TAP_TOGGLE(mods)    ACTION(ACT_MODS_TAP, ((mods)&0x1f)<<8 | MODS_TAP_TOGGLE)
+#define ACTION_MODS(mods)               ACTION(ACT_MODS, ((mods)&0x1f00) | 0)
+#define ACTION_MODS_KEY(mods, key)      ACTION(ACT_MODS, ((mods)&0x1f00) | (key))
+#define ACTION_MODS_TAP_KEY(mods, key)  ACTION(ACT_MODS_TAP, ((mods)&0x1f00) | (key))
+#define ACTION_MODS_ONESHOT(mods)       ACTION(ACT_MODS_TAP, ((mods)&0x1f00) | MODS_ONESHOT)
+#define ACTION_MODS_TAP_TOGGLE(mods)    ACTION(ACT_MODS_TAP, ((mods)&0x1f00) | MODS_TAP_TOGGLE)
+#define ACTION_TAP_KEY_MODS(key, mods)  ACTION(ACT_TAP_MODS, ((mods)&0x1f00) | (key))
 
 
 /*
@@ -227,7 +235,6 @@ enum usage_pages {
 };
 #define ACTION_USAGE_SYSTEM(id)         ACTION(ACT_USAGE, PAGE_SYSTEM<<10 | (id))
 #define ACTION_USAGE_CONSUMER(id)       ACTION(ACT_USAGE, PAGE_CONSUMER<<10 | (id))
-#define ACTION_MOUSEKEY(key)            ACTION(ACT_MOUSEKEY, key)
 
 
 
@@ -251,8 +258,8 @@ enum layer_pram_tap_op {
     OP_OFF_ON,
     OP_SET_CLEAR,
 };
-#define ACTION_LAYER_BITOP(op, part, bits, on)      (ACT_LAYER<<12 | (op)<<10 | (on)<<8 | (part)<<5 | ((bits)&0x1f))
-#define ACTION_LAYER_TAP(layer, key)                (ACT_LAYER_TAP<<12 | (layer)<<8 | (key))
+#define ACTION_LAYER_BITOP(op, part, bits, on)      ACTION(ACT_LAYER, (op)<<10 | (on)<<8 | (part)<<5 | ((bits)&0x1f))
+#define ACTION_LAYER_TAP(layer, key)                ACTION(ACT_LAYER_TAP, (layer)<<8 | (key))
 /* Default Layer */
 #define ACTION_DEFAULT_LAYER_SET(layer)             ACTION_DEFAULT_LAYER_BIT_SET((layer)/4, 1<<((layer)%4))
 #define ACTION_DEFAULT_LAYER_TOGGLE(layer)          ACTION_DEFAULT_LAYER_BIT_XOR((layer)/4, 1<<((layer)%4))
@@ -267,7 +274,7 @@ enum layer_pram_tap_op {
 #define ACTION_LAYER_ON_OFF(layer)                  ACTION_LAYER_TAP((layer), OP_ON_OFF)
 #define ACTION_LAYER_OFF_ON(layer)                  ACTION_LAYER_TAP((layer), OP_OFF_ON)
 #define ACTION_LAYER_SET_CLEAR(layer)               ACTION_LAYER_TAP((layer), OP_SET_CLEAR)
-#define ACTION_LAYER_MODS(layer, mods)              ACTION_LAYER_TAP((layer), 0xe0 | ((mods)&0x0f))
+#define ACTION_LAYER_MODS(layer, mods)              ACTION_LAYER_TAP((layer), 0xc0 | (((mods)>>8)&0x1f))
 /* With Tapping */
 #define ACTION_LAYER_TAP_KEY(layer, key)            ACTION_LAYER_TAP((layer), (key))
 #define ACTION_LAYER_TAP_TOGGLE(layer)              ACTION_LAYER_TAP((layer), OP_TAP_TOGGLE)
@@ -286,6 +293,12 @@ enum layer_pram_tap_op {
 /*
  * Extensions
  */
+/* Macro */
+#define ACTION_MACRO(id)                ACTION(ACT_MACRO, (id))
+#define ACTION_MACRO_TAP(id)            ACTION(ACT_MACRO, FUNC_TAP<<8 | (id))
+#define ACTION_MACRO_OPT(id, opt)       ACTION(ACT_MACRO, (opt)<<8 | (id))
+
+/* Backlight */
 enum backlight_opt {
     BACKLIGHT_INCREASE = 0,
     BACKLIGHT_DECREASE = 1,
@@ -293,18 +306,18 @@ enum backlight_opt {
     BACKLIGHT_STEP     = 3,
     BACKLIGHT_LEVEL    = 4,
 };
-/* Macro */
-#define ACTION_MACRO(id)                ACTION(ACT_MACRO, (id))
-#define ACTION_MACRO_TAP(id)            ACTION(ACT_MACRO, FUNC_TAP<<8 | (id))
-#define ACTION_MACRO_OPT(id, opt)       ACTION(ACT_MACRO, (opt)<<8 | (id))
-/* Backlight */
 #define ACTION_BACKLIGHT_INCREASE()     ACTION(ACT_BACKLIGHT, BACKLIGHT_INCREASE << 8)
 #define ACTION_BACKLIGHT_DECREASE()     ACTION(ACT_BACKLIGHT, BACKLIGHT_DECREASE << 8)
 #define ACTION_BACKLIGHT_TOGGLE()       ACTION(ACT_BACKLIGHT, BACKLIGHT_TOGGLE << 8)
 #define ACTION_BACKLIGHT_STEP()         ACTION(ACT_BACKLIGHT, BACKLIGHT_STEP << 8)
 #define ACTION_BACKLIGHT_LEVEL(level)   ACTION(ACT_BACKLIGHT, BACKLIGHT_LEVEL << 8 | level)
+
 /* Command */
-#define ACTION_COMMAND(id, opt)         ACTION(ACT_COMMAND,  (opt)<<8 | (addr))
+enum command_ids {
+    COMMAND_BOOTLOADER, // jump to bootloader
+};
+#define ACTION_COMMAND(id, opt)         ACTION(ACT_COMMAND,  (opt)<<8 | (id))
+
 /* Function */
 enum function_opts {
     FUNC_TAP = 0x8,     /* indciates function is tappable */

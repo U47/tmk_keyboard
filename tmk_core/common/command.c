@@ -19,7 +19,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "wait.h"
 #include "keycode.h"
 #include "host.h"
-#include "keymap.h"
 #include "print.h"
 #include "debug.h"
 #include "util.h"
@@ -57,9 +56,10 @@ static void command_console_help(void);
 #ifdef MOUSEKEY_ENABLE
 static bool mousekey_console(uint8_t code);
 static void mousekey_console_help(void);
+static uint8_t numkey2num(uint8_t code);
 #endif
 
-static uint8_t numkey2num(uint8_t code);
+
 static void switch_default_layer(uint8_t layer);
 
 
@@ -133,7 +133,7 @@ static void command_common_help(void)
           "e:	eeprom\n"
 #endif
 
-#ifdef NKRO_ENABLE
+#if defined(NKRO_ENABLE) || defined(NKRO_6KRO_ENABLE)
           "n:	NKRO\n"
 #endif
 
@@ -144,6 +144,9 @@ static void command_common_help(void)
 }
 
 #ifdef BOOTMAGIC_ENABLE
+#include "keymap.h"
+__attribute__ ((weak)) void eeconfig_debug(void) {}
+
 static void print_eeconfig(void)
 {
     print("default_layer: "); print_dec(eeconfig_read_default_layer()); print("\n");
@@ -175,6 +178,8 @@ static void print_eeconfig(void)
     print(".enable: "); print_dec(bc.enable); print("\n");
     print(".level: "); print_dec(bc.level); print("\n");
 #endif
+
+    eeconfig_debug();
 }
 #endif
 
@@ -183,13 +188,21 @@ static bool command_common(uint8_t code)
 #ifdef KEYBOARD_LOCK_ENABLE
     static host_driver_t *host_driver = 0;
 #endif
+#ifdef SLEEP_LED_ENABLE
+    static bool sleep_led_test = false;
+#endif
     switch (code) {
 #ifdef SLEEP_LED_ENABLE
         case KC_Z:
             // test breathing sleep LED
             print("Sleep LED test\n");
-            sleep_led_toggle();
-            led_set(host_keyboard_leds());
+            if (sleep_led_test) {
+                sleep_led_disable();
+                led_set(host_keyboard_leds());
+            } else {
+                sleep_led_enable();
+            }
+            sleep_led_test = !sleep_led_test;
             break;
 #endif
 #ifdef BOOTMAGIC_ENABLE
@@ -275,7 +288,7 @@ static bool command_common(uint8_t code)
             print("VID: " STR(VENDOR_ID) "(" STR(MANUFACTURER) ") "
                   "PID: " STR(PRODUCT_ID) "(" STR(PRODUCT) ") "
                   "VER: " STR(DEVICE_VER) "\n");
-            print("BUILD: " STR(VERSION) " (" __TIME__ " " __DATE__ ")\n");
+            print("BUILD: " STR(TMK_VERSION) " (" __TIME__ " " __DATE__ ")\n");
             /* build options */
             print("OPTIONS:"
 #ifdef PROTOCOL_PJRC
@@ -305,7 +318,7 @@ static bool command_common(uint8_t code)
 #ifdef COMMAND_ENABLE
             " COMMAND"
 #endif
-#ifdef NKRO_ENABLE
+#if defined(NKRO_ENABLE) || defined(NKRO_6KRO_ENABLE)
             " NKRO"
 #endif
 #ifdef KEYMAP_SECTION_ENABLE
@@ -327,7 +340,7 @@ static bool command_common(uint8_t code)
             print_val_hex8(host_keyboard_leds());
             print_val_hex8(keyboard_protocol);
             print_val_hex8(keyboard_idle);
-#ifdef NKRO_ENABLE
+#if defined(NKRO_ENABLE) || defined(NKRO_6KRO_ENABLE)
             print_val_hex8(keyboard_nkro);
 #endif
             print_val_hex32(timer_read32());
@@ -346,7 +359,7 @@ static bool command_common(uint8_t code)
 #   endif
 #endif
             break;
-#ifdef NKRO_ENABLE
+#if defined(NKRO_ENABLE) || defined(NKRO_6KRO_ENABLE)
         case KC_N:
             clear_keyboard(); //Prevents stuck keys.
             keyboard_nkro = !keyboard_nkro;
@@ -621,6 +634,7 @@ static bool mousekey_console(uint8_t code)
 /***********************************************************
  * Utilities
  ***********************************************************/
+#if MOUSEKEY_ENABLE
 static uint8_t numkey2num(uint8_t code)
 {
     switch (code) {
@@ -637,6 +651,7 @@ static uint8_t numkey2num(uint8_t code)
     }
     return 0;
 }
+#endif
 
 static void switch_default_layer(uint8_t layer)
 {

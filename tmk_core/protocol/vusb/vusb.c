@@ -26,8 +26,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "vusb.h"
 
 
+/* host.h */
+uint8_t keyboard_protocol=1;
+uint8_t keyboard_idle = 0;
+
 static uint8_t vusb_keyboard_leds = 0;
-static uint8_t vusb_idle_rate = 0;
 
 /* Keyboard report send buffer */
 #define KBUF_SIZE 16
@@ -179,13 +182,13 @@ usbRequest_t    *rq = (void *)data;
             return sizeof(keyboard_report);
         }else if(rq->bRequest == USBRQ_HID_GET_IDLE){
             debug("GET_IDLE: ");
-            //debug_hex(vusb_idle_rate);
-            usbMsgPtr = &vusb_idle_rate;
+            //debug_hex(keyboard_idle);
+            usbMsgPtr = &keyboard_idle;
             return 1;
         }else if(rq->bRequest == USBRQ_HID_SET_IDLE){
-            vusb_idle_rate = rq->wValue.bytes[1];
+            keyboard_idle = rq->wValue.bytes[1];
             debug("SET_IDLE: ");
-            debug_hex(vusb_idle_rate);
+            debug_hex(keyboard_idle);
         }else if(rq->bRequest == USBRQ_HID_SET_REPORT){
             debug("SET_REPORT: ");
             // Report Type: 0x02(Out)/ReportID: 0x00(none) && Interface: 0(keyboard)
@@ -266,7 +269,7 @@ const PROGMEM uchar keyboard_hid_report[] = {
     0x95, 0x06,          //   Report Count (6),
     0x75, 0x08,          //   Report Size (8),
     0x15, 0x00,          //   Logical Minimum (0),
-    0x25, 0xFF,          //   Logical Maximum(255),
+    0x26, 0xFF, 0x00,    //   Logical Maximum(255),
     0x05, 0x07,          //   Usage Page (Key Codes),
     0x19, 0x00,          //   Usage Minimum (0),
     0x29, 0xFF,          //   Usage Maximum (255),
@@ -336,7 +339,7 @@ const PROGMEM uchar mouse_hid_report[] = {
     0xa1, 0x01,                    // COLLECTION (Application)
     0x85, REPORT_ID_SYSTEM,        //   REPORT_ID (2)
     0x15, 0x01,                    //   LOGICAL_MINIMUM (0x1)
-    0x25, 0xb7,                    //   LOGICAL_MAXIMUM (0xb7)
+    0x26, 0xb7, 0x00,              //   LOGICAL_MAXIMUM (0xb7)
     0x19, 0x01,                    //   USAGE_MINIMUM (0x1)
     0x29, 0xb7,                    //   USAGE_MAXIMUM (0xb7)
     0x75, 0x10,                    //   REPORT_SIZE (16)

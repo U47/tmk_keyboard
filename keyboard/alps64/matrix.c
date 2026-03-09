@@ -25,13 +25,15 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "print.h"
 #include "debug.h"
 #include "util.h"
+#include "timer.h"
 #include "matrix.h"
 
 
 #ifndef DEBOUNCE
 #   define DEBOUNCE	5
 #endif
-static uint8_t debouncing = DEBOUNCE;
+static bool debouncing = false;
+static uint16_t debouncing_time = 0;
 
 /* matrix state(1:on, 0:off) */
 static matrix_row_t matrix[MATRIX_ROWS];
@@ -42,18 +44,6 @@ static void init_cols(void);
 static void unselect_rows(void);
 static void select_row(uint8_t row);
 
-
-inline
-uint8_t matrix_rows(void)
-{
-    return MATRIX_ROWS;
-}
-
-inline
-uint8_t matrix_cols(void)
-{
-    return MATRIX_COLS;
-}
 
 #define LED_ON()    do { DDRC |= (1<<5); PORTC |= (1<<5); } while (0)
 #define LED_OFF()   do { DDRC &= ~(1<<5); PORTC &= ~(1<<5); } while (0)
@@ -72,7 +62,7 @@ void matrix_init(void)
     }
 
     //debug
-    debug_matrix = true;
+    debug_matrix = false;
     LED_ON();
     _delay_ms(500);
     LED_OFF();
@@ -82,51 +72,33 @@ uint8_t matrix_scan(void)
 {
     for (uint8_t i = 0; i < MATRIX_ROWS; i++) {
         select_row(i);
-        _delay_us(30);  // without this wait read unstable value.
+        _delay_us(30);  // delay for settling
         matrix_row_t cols = read_cols();
         if (matrix_debouncing[i] != cols) {
-            matrix_debouncing[i] = cols;
             if (debouncing) {
-                debug("bounce!: "); debug_hex(debouncing); debug("\n");
+                dprintf("bounce: %d %d@%02X\n", timer_elapsed(debouncing_time), i, matrix_debouncing[i]^cols);
             }
-            debouncing = DEBOUNCE;
+            matrix_debouncing[i] = cols;
+            debouncing = true;
+            debouncing_time = timer_read();
         }
         unselect_rows();
     }
 
-    if (debouncing) {
-        if (--debouncing) {
-            _delay_ms(1);
-        } else {
-            for (uint8_t i = 0; i < MATRIX_ROWS; i++) {
-                matrix[i] = matrix_debouncing[i];
-            }
+    if (debouncing && timer_elapsed(debouncing_time) >= DEBOUNCE) {
+        for (uint8_t i = 0; i < MATRIX_ROWS; i++) {
+            matrix[i] = matrix_debouncing[i];
         }
+        debouncing = false;
     }
 
     return 1;
 }
 
 inline
-bool matrix_is_on(uint8_t row, uint8_t col)
-{
-    return (matrix[row] & ((matrix_row_t)1<<col));
-}
-
-inline
 matrix_row_t matrix_get_row(uint8_t row)
 {
     return matrix[row];
-}
-
-void matrix_print(void)
-{
-    print("\nr/c 0123456789ABCDEF\n");
-    for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
-        phex(row); print(": ");
-        pbin_reverse16(matrix_get_row(row));
-        print("\n");
-    }
 }
 
 /* Column pin configuration
